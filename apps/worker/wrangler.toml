@@ -1,0 +1,14 @@
+name = "qozara-ai-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+AI_PROVIDER = "google"
+GOOGLE_GENERATIVE_AI_MODEL = "gemini-2.0-flash"
+AI_RATE_LIMIT_REQUESTS = "20"
+AI_RATE_LIMIT_WINDOW = "1 d"
+ANONYMOUS_RATE_LIMIT_REQUESTS = "5"
+ANONYMOUS_RATE_LIMIT_WINDOW = "1 d"
+BYOK_BURST_LIMIT_REQUESTS = "60"
+BYOK_BURST_LIMIT_WINDOW = "1 m"
