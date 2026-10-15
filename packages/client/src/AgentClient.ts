@@ -9,10 +9,10 @@ export class AgentClient {
     private base: string;
 
     constructor(
-        baseUrl: string,
+        baseUrl: string = '',
         private getAuthToken?: AuthTokenGetter
     ) {
-        this.base = baseUrl.replace(/\/$/, '');
+        this.base = (baseUrl || '').replace(/\/$/, '');
     }
 
     /**

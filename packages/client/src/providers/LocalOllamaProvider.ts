@@ -10,7 +10,7 @@ export class LocalOllamaProvider implements AiProvider {
         baseUrl: string = 'http://localhost:11434/api',
         model: string = 'qwen2.5:0.5b'
     ) {
-        this.base = baseUrl.replace(/\/$/, '');
+        this.base = (baseUrl || 'http://localhost:11434/api').replace(/\/$/, '');
         this.model = model;
     }
 

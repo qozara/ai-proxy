@@ -9,12 +9,12 @@ export class ProxyAiProvider implements AiProvider {
     }
 
     constructor(
-        proxyUrl: string,
+        proxyUrl: string = '',
         private getAuthToken?: AuthTokenGetter,
         private encryptedApiKey?: string,
         private byokProvider?: string
     ) {
-        this.base = proxyUrl.replace(/\/$/, '');
+        this.base = (proxyUrl || '').replace(/\/$/, '');
     }
 
     async chat(request: AgentChatRequest): Promise<AgentChatResponse> {

@@ -6,6 +6,7 @@ node_modules/
 dist/
 .wrangler/
 .vite/
+*.tsbuildinfo
 
 # Environment files
 .env
