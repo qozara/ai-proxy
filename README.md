@@ -157,11 +157,26 @@ npm test
 
 ## 🚢 Deployment
 
-Deploy directly to Cloudflare Workers:
+### 1. Vercel Edge Deployment (`ai.qozara.org`)
+The proxy is continuously deployed to Vercel Edge on every push to `main`:
+* **Live Gateway:** `https://ai.qozara.org`
+* **Health Check:** `https://ai.qozara.org/health`
+* **Root Directory:** `apps/worker`
+* **Runtime:** Vercel Edge Function (`export const runtime = 'edge'`)
+
+Environment variables configured in Vercel:
+* `KMS_SECRET`: 32-byte secret (raw, base64, or hex)
+* `GOOGLE_GENERATIVE_AI_API_KEY`: Dedicated Gemini 2.0 Flash API key
+* `GOOGLE_GENERATIVE_AI_MODEL`: `gemini-2.0-flash`
+* `AI_PROVIDER`: `google`
+* `KV_REST_API_URL` & `KV_REST_API_TOKEN`: Upstash Redis for sliding window quotas
+
+### 2. Cloudflare Workers (Alternative Edge)
+Deploy directly to Cloudflare Workers via Wrangler:
 ```bash
 npm run deploy --workspace=@qozara/ai-proxy-worker
 ```
-Configure secrets in Cloudflare Dashboard or via Wrangler:
+Configure secrets via Wrangler:
 ```bash
 npx wrangler secret put KMS_SECRET
 npx wrangler secret put GOOGLE_GENERATIVE_AI_API_KEY

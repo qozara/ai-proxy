@@ -4,14 +4,44 @@
  */
 
 async function getEncryptionKey(secret: string): Promise<CryptoKey> {
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(secret);
+    const trimmed = secret.trim();
+    let keyData: Uint8Array;
+
+    // Check if secret is 32 raw bytes
+    const rawBytes = new TextEncoder().encode(trimmed);
+    if (rawBytes.byteLength === 32) {
+        keyData = rawBytes;
+    } else if (trimmed.length === 44 || trimmed.length === 43) {
+        // Handle Base64-encoded 32-byte secret (e.g. from openssl rand -base64 32)
+        try {
+            const decoded = atob(trimmed);
+            const bytes = new Uint8Array(decoded.length);
+            for (let i = 0; i < decoded.length; i++) {
+                bytes[i] = decoded.charCodeAt(i);
+            }
+            if (bytes.byteLength === 32) {
+                keyData = bytes;
+            } else {
+                keyData = rawBytes;
+            }
+        } catch {
+            keyData = rawBytes;
+        }
+    } else if (trimmed.length === 64 && /^[0-9a-fA-F]+$/.test(trimmed)) {
+        // Handle Hex-encoded 32-byte secret (e.g. from openssl rand -hex 32)
+        const bytes = new Uint8Array(32);
+        for (let i = 0; i < 32; i++) {
+            bytes[i] = parseInt(trimmed.substring(i * 2, i * 2 + 2), 16);
+        }
+        keyData = bytes;
+    } else {
+        keyData = rawBytes;
+    }
 
     if (keyData.byteLength !== 32) {
         throw new Error(
             `Invalid KMS_SECRET: Expected 32 bytes, but got ${keyData.byteLength}. ` +
-            `The KMS_SECRET must be exactly 32 bytes of cryptographically random data. ` +
-            `You can generate one using: openssl rand -base64 32`
+            `The KMS_SECRET must provide exactly 32 bytes of cryptographically random data (raw, base64, or hex).`
         );
     }
 

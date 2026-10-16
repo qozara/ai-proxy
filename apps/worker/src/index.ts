@@ -117,8 +117,9 @@ app.post('/api/v1/agent/encrypt', async (c) => {
     try {
         const ciphertext = await encrypt(apiKey, KMS_SECRET);
         return c.json({ ciphertext });
-    } catch {
-        return c.json({ error: 'Internal Server Error', message: 'Encryption failed' }, 500);
+    } catch (err: any) {
+        console.error('Encryption failed:', err);
+        return c.json({ error: 'Internal Server Error', message: err?.message || 'Encryption failed' }, 500);
     }
 });
 
