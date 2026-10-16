@@ -42,6 +42,24 @@ describe('Edge KMS AES-256-GCM', () => {
         await expect(decrypt(ciphertext, wrongSecret)).rejects.toThrow();
     });
 
+    it('should support base64-encoded 32-byte secret', async () => {
+        const base64Secret = btoa(VALID_SECRET);
+        const text = 'secret-key-123';
+        const ciphertext = await encrypt(text, base64Secret);
+        const decrypted = await decrypt(ciphertext, base64Secret);
+        expect(decrypted).toBe(text);
+    });
+
+    it('should support hex-encoded 32-byte secret', async () => {
+        const hexSecret = Array.from(new TextEncoder().encode(VALID_SECRET))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        const text = 'secret-key-hex';
+        const ciphertext = await encrypt(text, hexSecret);
+        const decrypted = await decrypt(ciphertext, hexSecret);
+        expect(decrypted).toBe(text);
+    });
+
     it('should fail decryption on corrupted or truncated ciphertext', async () => {
         await expect(decrypt('invalid-base64-!!!', VALID_SECRET)).rejects.toThrow();
         await expect(decrypt('dG9vc2hvcnQ=', VALID_SECRET)).rejects.toThrow(/payload too short/);
