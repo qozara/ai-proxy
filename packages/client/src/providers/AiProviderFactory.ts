@@ -19,7 +19,7 @@ export class DisabledAiProvider implements AiProvider {
 
 export class AiProviderFactory {
     static async createProvider(config: AiFactoryConfig, getAuthToken?: AuthTokenGetter): Promise<AiProvider> {
-        const { providerPreference, encryptedApiKey, baseUrl, proxyUrl, byokProvider } = config;
+        const { providerPreference, encryptedApiKey, baseUrl, proxyUrl, byokProvider, enableLocalAi } = config;
 
         // Forced Disable
         if (providerPreference === 'disabled') {
@@ -33,7 +33,10 @@ export class AiProviderFactory {
 
         // 2. Explicit Selection: Local Ollama
         if (providerPreference === 'local') {
-            return new LocalOllamaProvider(baseUrl, config.ollamaModel);
+            if (enableLocalAi !== false) {
+                return new LocalOllamaProvider(baseUrl, config.ollamaModel);
+            }
+            return new DisabledAiProvider();
         }
 
         // 3. Explicit Selection: Local Browser AI
@@ -60,10 +63,12 @@ export class AiProviderFactory {
                 return windowProvider;
             }
 
-            // c) If Local Ollama daemon is active
-            const localProvider = new LocalOllamaProvider(baseUrl, config.ollamaModel);
-            if (await localProvider.checkAvailability()) {
-                return localProvider;
+            // c) If Local Ollama daemon is active (skip probing if explicitly disabled)
+            if (enableLocalAi !== false) {
+                const localProvider = new LocalOllamaProvider(baseUrl, config.ollamaModel);
+                if (await localProvider.checkAvailability()) {
+                    return localProvider;
+                }
             }
 
             // d) Last resort: Qozara Intelligence edge proxy
@@ -86,7 +91,7 @@ export class AiProviderFactory {
             case 'byok':
                 return 'Enter your Gemini API key below. It will be encrypted and stored solely in your personal storage.';
             case 'cloud':
-                return 'Using Qozara Intelligence (Rate-limited).';
+                return 'Using Qozara Intelligence (Requires registered Qozara Google account).';
             default:
                 return null;
         }

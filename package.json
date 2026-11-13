@@ -11,7 +11,8 @@
     "dev": "npm run dev --workspace=@qozara/ai-proxy-worker",
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run",
-    "check": "tsc --build --clean && tsc --build"
+    "check": "tsc --build --clean && tsc --build",
+    "users": "tsc -b apps/worker && node apps/worker/scripts/manage-users.mjs"
   },
   "devDependencies": {
     "typescript": "5.6.3",

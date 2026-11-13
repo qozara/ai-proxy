@@ -83,4 +83,42 @@ describe('AgentClient SDK', () => {
         expect(response.type).toBe('text');
         expect(response.error).toBe('RATE_LIMIT_EXCEEDED');
     });
+
+    it('should propagate UNAUTHORIZED_401 on HTTP 401 response', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValueOnce({
+            ok: false,
+            status: 401,
+            json: async () => ({
+                code: 'UNAUTHORIZED_401',
+                message: 'Authentication required for Qozara Intelligence.',
+            }),
+        } as any);
+
+        const client = new AgentClient('https://ai.qozara.org');
+        const response = await client.chat({
+            messages: [{ role: 'user', content: 'Hello' }],
+        });
+
+        expect(response.type).toBe('text');
+        expect(response.error).toBe('UNAUTHORIZED_401');
+    });
+
+    it('should propagate FORBIDDEN_403 on HTTP 403 response', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValueOnce({
+            ok: false,
+            status: 403,
+            json: async () => ({
+                code: 'FORBIDDEN_403',
+                message: 'Your Qozara account is not registered for Qozara Intelligence.',
+            }),
+        } as any);
+
+        const client = new AgentClient('https://ai.qozara.org', async () => 'google-token');
+        const response = await client.chat({
+            messages: [{ role: 'user', content: 'Hello' }],
+        });
+
+        expect(response.type).toBe('text');
+        expect(response.error).toBe('FORBIDDEN_403');
+    });
 });
