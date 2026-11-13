@@ -38,6 +38,7 @@ export interface AiFactoryConfig {
     proxyUrl?: string;
     ollamaModel?: string;
     byokProvider?: string;
+    enableLocalAi?: boolean;
 }
 
 export type AuthTokenGetter = () => string | null | undefined | Promise<string | null | undefined>;
