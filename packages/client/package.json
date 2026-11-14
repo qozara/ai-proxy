@@ -1,6 +1,6 @@
 {
   "name": "@qozara/ai-client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Isomorphic AI client SDK for Qozara ecosystem with polymorphic fallback and KMS envelope encryption support",
   "files": [
     "dist"
