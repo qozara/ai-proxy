@@ -1,3 +1,16 @@
+export type GenAiProviderPreference =
+    | 'auto'
+    | 'cloud'
+    | 'byok'
+    | 'local-browser'
+    | 'local'
+    | 'disabled';
+
+export type LegacyAiProviderPreference =
+    | 'qozara-intelligence'
+    | 'ollama'
+    | 'window.ai';
+
 export interface AgentChatMessage {
     role: string;
     content: string;
@@ -32,7 +45,7 @@ export interface AiProvider {
 }
 
 export interface AiFactoryConfig {
-    providerPreference: 'auto' | 'byok' | 'local' | 'local-browser' | 'cloud' | 'disabled';
+    providerPreference: GenAiProviderPreference | LegacyAiProviderPreference;
     encryptedApiKey?: string;
     baseUrl?: string;
     proxyUrl?: string;

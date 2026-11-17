@@ -14,7 +14,7 @@ describe('AiProviderFactory & Fallback Logic', () => {
 
         expect(provider.id).toBe('disabled');
         expect(provider.mode).toBe('disabled');
-        expect((await provider.chat({ messages: [] })).error).toBe('AI is disabled');
+        expect((await provider.chat({ messages: [] })).error).toBe('GenAI is disabled');
     });
 
     it('should create ProxyAiProvider with mode byok when explicit byok is selected', async () => {
@@ -28,15 +28,47 @@ describe('AiProviderFactory & Fallback Logic', () => {
         expect(provider.mode).toBe('byok');
     });
 
-    it('should create LocalOllamaProvider when local is selected', async () => {
+    it('should disable explicit local provider by default when enableLocalAi is omitted', async () => {
         const provider = await AiProviderFactory.createProvider({
             providerPreference: 'local',
             baseUrl: 'http://localhost:11434/api',
             ollamaModel: 'qwen2.5:0.5b',
         });
 
+        expect(provider.id).toBe('disabled');
+        expect(provider.mode).toBe('disabled');
+    });
+
+    it('should create LocalOllamaProvider when local is selected and enableLocalAi is true', async () => {
+        const provider = await AiProviderFactory.createProvider({
+            providerPreference: 'local',
+            enableLocalAi: true,
+            baseUrl: 'http://localhost:11434/api',
+            ollamaModel: 'qwen2.5:0.5b',
+        });
+
         expect(provider.id).toBe('local-ollama');
         expect(provider.mode).toBe('local-ollama');
+    });
+
+    it('should normalize legacy provider preferences (qozara-intelligence, ollama, window.ai)', async () => {
+        const cloud = await AiProviderFactory.createProvider({
+            providerPreference: 'qozara-intelligence',
+            proxyUrl: 'https://ai.qozara.org',
+        });
+        expect(cloud.mode).toBe('cloud');
+
+        const local = await AiProviderFactory.createProvider({
+            providerPreference: 'ollama',
+            enableLocalAi: true,
+            baseUrl: 'http://localhost:11434/api',
+        });
+        expect(local.mode).toBe('local-ollama');
+
+        const browser = await AiProviderFactory.createProvider({
+            providerPreference: 'window.ai',
+        });
+        expect(browser.mode).toBe('local-browser');
     });
 
     it('should dynamically extract arbitrary client tools in LocalOllamaProvider without hardcoded schemas', async () => {
@@ -83,30 +115,50 @@ describe('AiProviderFactory & Fallback Logic', () => {
         expect(provider.mode).toBe('byok');
     });
 
-    it('should fall back to Qozara Intelligence cloud proxy when no local provider is available', async () => {
-        // Mock fetch to return false for Ollama checkAvailability
-        globalThis.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'));
-
-        const provider = await AiProviderFactory.createProvider({
-            providerPreference: 'auto',
-            proxyUrl: 'https://ai.qozara.org',
-        });
-
-        expect(provider.id).toBe('cloud-proxy');
-        expect(provider.mode).toBe('cloud');
-    });
-
-    it('should skip LocalOllamaProvider probe in auto mode when enableLocalAi is false', async () => {
+    it('should skip LocalOllamaProvider probe in auto mode when enableLocalAi is omitted or false', async () => {
         const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
         globalThis.fetch = fetchSpy;
 
-        const provider = await AiProviderFactory.createProvider({
+        const providerOmitted = await AiProviderFactory.createProvider({
+            providerPreference: 'auto',
+            proxyUrl: 'https://ai.qozara.org',
+        });
+        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(providerOmitted.id).toBe('cloud-proxy');
+        expect(providerOmitted.mode).toBe('cloud');
+
+        const providerFalse = await AiProviderFactory.createProvider({
             providerPreference: 'auto',
             enableLocalAi: false,
             proxyUrl: 'https://ai.qozara.org',
         });
-
         expect(fetchSpy).not.toHaveBeenCalled();
+        expect(providerFalse.id).toBe('cloud-proxy');
+    });
+
+    it('should probe and select LocalOllamaProvider in auto mode when enableLocalAi is true', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: true } as any);
+
+        const provider = await AiProviderFactory.createProvider({
+            providerPreference: 'auto',
+            enableLocalAi: true,
+            baseUrl: 'http://localhost:11434/api',
+            proxyUrl: 'https://ai.qozara.org',
+        });
+
+        expect(provider.id).toBe('local-ollama');
+        expect(provider.mode).toBe('local-ollama');
+    });
+
+    it('should fall back to Qozara Intelligence cloud proxy when enableLocalAi is true and Ollama is unreachable', async () => {
+        globalThis.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'));
+
+        const provider = await AiProviderFactory.createProvider({
+            providerPreference: 'auto',
+            enableLocalAi: true,
+            proxyUrl: 'https://ai.qozara.org',
+        });
+
         expect(provider.id).toBe('cloud-proxy');
         expect(provider.mode).toBe('cloud');
     });
