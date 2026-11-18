@@ -11,8 +11,10 @@ We implement a polymorphic AI provider architecture in `@qozara/ai-client`:
 1. **Unified Interface (`AiProvider`):** Standardizes `chat`, `checkAvailability`, and `getSetupMessage`.
 2. **Dynamic Tool Calling:** Providers inspect client tools dynamically at runtime, avoiding any hardcoded application-specific function names.
 3. **Polymorphic Fallback Waterfall in `auto` Mode:**
-   $$\text{BYOK (Personal Cloud Key)} \longrightarrow \text{Window.AI (Gemini Nano)} \longrightarrow \text{Local Ollama} \longrightarrow \text{Qozara Intelligence (Edge Proxy)}$$
+   $$\text{BYOK (Personal Cloud Key)} \longrightarrow \text{Window.AI (Gemini Nano)} \longrightarrow \text{Local Ollama (strictly opt-in via enableLocalAi)} \longrightarrow \text{Qozara Intelligence (Edge Proxy)}$$
 4. **Edge Provider Factory (`apps/worker`):** Implements `AiSdkAdapter` abstraction allowing future addition of open-weights models (Cloudflare Workers AI, vLLM) with zero client SDK refactoring.
+
+See [ADR 0005](./0005-composite-symbolic-and-genai-resolver-architecture.md) for the higher-level Composite AI (`CompositeAiResolver` + `GenAiToolResolver`) and unified `UserAiSettings` architecture built on top of `AiProviderFactory`.
 
 ## Consequences
 ### Positive

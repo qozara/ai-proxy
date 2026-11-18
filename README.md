@@ -63,8 +63,11 @@ Clients communicate strictly using standard JSON-Schema tool calling arrays and 
 ## 📦 Monorepo Structure
 
 * **`apps/worker` (`@qozara/ai-proxy-worker`)**: High-performance Cloudflare Worker built on [Hono](https://hono.dev/) with Web Crypto AES-256-GCM and Upstash rate-limiting.
-* **`packages/client` (`@qozara/ai-client`)**: Isomorphic TypeScript client SDK with polymorphic fallback waterfall:
-  $$\text{BYOK} \longrightarrow \text{Window.AI (Gemini Nano)} \longrightarrow \text{Local Ollama} \longrightarrow \text{Qozara Intelligence}$$
+* **`packages/client` (`@qozara/ai-client`)**: Isomorphic TypeScript client SDK offering:
+  * **Polymorphic GenAI Fallback Waterfall (`AiProviderFactory`)**:
+    $$\text{BYOK} \longrightarrow \text{Window.AI (Gemini Nano)} \longrightarrow \text{Local Ollama (opt-in)} \longrightarrow \text{Qozara Intelligence}$$
+  * **Composite AI & GenAI Resolvers (`CompositeAiResolver`, `GenAiToolResolver`, `extractToolCallData`)**: Unifies deterministic/symbolic AI parsing with cached GenAI tool-call escalation and graceful offline degradation.
+  * **Shared Primitives (`LruMemoryCache`, `AiError` / `classifyAiError`, `UserAiSettings`, `AiKeyEncryptionService`, `validateAndPrepareAiSettings`)**: Eliminates duplicated client boilerplate across Quozen and Quomida while making local network probing strictly opt-in (`enableLocalAi`).
 
 ---
 
