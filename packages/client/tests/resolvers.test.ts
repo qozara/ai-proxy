@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LruMemoryCache } from '../src/cache/LruMemoryCache.js';
 import { AiError } from '../src/errors/AiError.js';
+import { AiProviderFactory } from '../src/providers/AiProviderFactory.js';
 import { extractToolCallData } from '../src/resolvers/extractToolCallData.js';
 import { createGenAiToolResolver } from '../src/resolvers/GenAiToolResolver.js';
 import { createCompositeAiResolver } from '../src/resolvers/CompositeAiResolver.js';
@@ -98,6 +99,7 @@ describe('GenAiToolResolver', () => {
         globalThis.fetch = fetchMock;
 
         const cache = new LruMemoryCache<string, { dish: string }>(10);
+        const spy = vi.spyOn(AiProviderFactory, 'createProvider');
         const resolver = createGenAiToolResolver<{ query: string }, { dish: string }>({
             factoryConfig: {
                 providerPreference: 'cloud',
@@ -118,6 +120,10 @@ describe('GenAiToolResolver', () => {
         expect(first).toEqual({ dish: 'Locro' });
         expect(second).toEqual({ dish: 'Locro' });
         expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(
+            expect.objectContaining({ providerPreference: 'cloud' }),
+            undefined
+        );
     });
 
     it('classifies provider errors and never caches failures', async () => {
@@ -128,6 +134,7 @@ describe('GenAiToolResolver', () => {
         } as any);
 
         const cache = new LruMemoryCache<string, { dish: string }>(10);
+        const spy = vi.spyOn(AiProviderFactory, 'createProvider');
         const resolver = createGenAiToolResolver<{ query: string }, { dish: string }>({
             factoryConfig: {
                 providerPreference: 'cloud',
