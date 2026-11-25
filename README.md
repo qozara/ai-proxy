@@ -66,8 +66,8 @@ Clients communicate strictly using standard JSON-Schema tool calling arrays and 
 * **`packages/client` (`@qozara/ai-client`)**: Isomorphic TypeScript client SDK offering:
   * **Polymorphic GenAI Fallback Waterfall (`AiProviderFactory`)**:
     $$\text{BYOK} \longrightarrow \text{Window.AI (Gemini Nano)} \longrightarrow \text{Local Ollama (opt-in)} \longrightarrow \text{Qozara Intelligence}$$
-  * **Composite AI & GenAI Resolvers (`CompositeAiResolver`, `GenAiToolResolver`, `extractToolCallData`)**: Unifies deterministic/symbolic AI parsing with cached GenAI tool-call escalation and graceful offline degradation.
-  * **Shared Primitives (`LruMemoryCache`, `AiError` / `classifyAiError`, `UserAiSettings`, `AiKeyEncryptionService`, `validateAndPrepareAiSettings`)**: Eliminates duplicated client boilerplate across Quozen and Quomida while making local network probing strictly opt-in (`enableLocalAi`).
+  * **Composite AI & GenAI Resolvers (`CompositeAiResolver`, `GenAiToolResolver`, `extractToolCallData`)**: Unifies deterministic/symbolic AI parsing with cached GenAI tool-call escalation, 1-shot `onAuthExpired` OAuth token refresh on HTTP `401`, and graceful offline degradation.
+  * **Shared Primitives (`LruMemoryCache`, `AiError` / `classifyAiError`, `UserAiSettings`, `AiKeyEncryptionService`, `validateAndPrepareAiSettings`)**: Distinguishes `AUTHENTICATION_REQUIRED` (`401` invalid/expired session) from `FORBIDDEN_NOT_REGISTERED` (`403` unregistered Mode 1A account) while making local network probing strictly opt-in (`enableLocalAi`).
 
 ---
 

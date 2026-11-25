@@ -1,4 +1,10 @@
-import { AiProvider, AgentChatRequest, AgentChatResponse, AuthTokenGetter } from './types.js';
+import {
+    AiProvider,
+    AgentChatRequest,
+    AgentChatResponse,
+    AuthTokenGetter,
+    AuthTokenRefresher,
+} from './types.js';
 
 export class ProxyAiProvider implements AiProvider {
     readonly id = 'cloud-proxy';
@@ -12,47 +18,81 @@ export class ProxyAiProvider implements AiProvider {
         proxyUrl: string = '',
         private getAuthToken?: AuthTokenGetter,
         private encryptedApiKey?: string,
-        private byokProvider?: string
+        private byokProvider?: string,
+        private onAuthExpired?: AuthTokenRefresher
     ) {
         this.base = (proxyUrl || '').replace(/\/$/, '');
     }
 
+    private async sendChatRequest(
+        request: AgentChatRequest,
+        tokenOverride?: string | null
+    ): Promise<Response> {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+
+        const token =
+            tokenOverride !== undefined
+                ? tokenOverride
+                : this.getAuthToken
+                  ? await this.getAuthToken()
+                  : null;
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        return fetch(`${this.base}/api/v1/agent/chat`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                messages: request.messages,
+                systemPrompt: request.systemPrompt,
+                tools: request.tools,
+                ciphertext: this.encryptedApiKey,
+                byokProvider: this.byokProvider,
+            }),
+        });
+    }
+
     async chat(request: AgentChatRequest): Promise<AgentChatResponse> {
         try {
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
+            let response = await this.sendChatRequest(request);
 
-            if (this.getAuthToken) {
-                const token = await this.getAuthToken();
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
+            // 1-shot automatic token refresh retry on 401 in Qozara Cloud AI mode
+            if (response.status === 401 && !this.encryptedApiKey && this.onAuthExpired) {
+                const refreshedToken = await this.onAuthExpired();
+                if (refreshedToken && refreshedToken.trim()) {
+                    response = await this.sendChatRequest(request, refreshedToken.trim());
                 }
             }
 
-            const response = await fetch(`${this.base}/api/v1/agent/chat`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    messages: request.messages,
-                    systemPrompt: request.systemPrompt,
-                    tools: request.tools,
-                    ciphertext: this.encryptedApiKey,
-                    byokProvider: this.byokProvider,
-                }),
-            });
-
             if (!response.ok) {
-                const error = await response.json().catch(() => ({})) as any;
+                const error = (await response.json().catch(() => ({}))) as {
+                    code?: string;
+                    message?: string;
+                    error?: string;
+                };
                 return {
                     type: 'text',
-                    error: error.code || error.message || error.error || `Proxy request failed (${response.status})`,
+                    error:
+                        error.code ||
+                        error.message ||
+                        error.error ||
+                        `Proxy request failed (${response.status})`,
+                    errorCode: error.code,
+                    errorMessage: error.message,
+                    status: response.status,
                 };
             }
 
-            return await response.json() as AgentChatResponse;
+            return (await response.json()) as AgentChatResponse;
         } catch (error: any) {
-            return { type: 'text', error: error.message || 'Network error communicating with AI proxy' };
+            return {
+                type: 'text',
+                error: error.message || 'Network error communicating with AI proxy',
+            };
         }
     }
 

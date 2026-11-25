@@ -6,12 +6,14 @@ import type {
     AgentChatResponse,
     AiFactoryConfig,
     AuthTokenGetter,
+    AuthTokenRefresher,
 } from '../providers/types.js';
 import { extractToolCallData, type ExtractedToolCall } from './extractToolCallData.js';
 
 export interface GenAiToolResolverConfig<TInput, TOutput, TArgs = Record<string, any>> {
     factoryConfig: AiFactoryConfig | ((input: TInput) => AiFactoryConfig | Promise<AiFactoryConfig>);
     getAuthToken?: AuthTokenGetter;
+    onAuthExpired?: AuthTokenRefresher;
     cache?: LruMemoryCache<string, TOutput> | null;
     cacheCapacity?: number;
     getCacheKey?: (input: TInput) => string | null;
@@ -61,7 +63,8 @@ export class GenAiToolResolver<TInput, TOutput, TArgs = Record<string, any>> {
 
             const provider = await AiProviderFactory.createProvider(
                 resolvedFactoryConfig,
-                this.config.getAuthToken
+                this.config.getAuthToken,
+                this.config.onAuthExpired
             );
 
             const request = await this.config.buildRequest(input);
@@ -72,7 +75,10 @@ export class GenAiToolResolver<TInput, TOutput, TArgs = Record<string, any>> {
             }
 
             if (response.error) {
-                throw classifyAiError(new Error(response.error));
+                const detail = response.errorMessage
+                    ? `${response.error}: ${response.errorMessage}`
+                    : response.error;
+                throw classifyAiError(new Error(detail));
             }
 
             const extracted = extractToolCallData<TArgs>(response);

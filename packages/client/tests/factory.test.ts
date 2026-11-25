@@ -28,6 +28,17 @@ describe('AiProviderFactory & Fallback Logic', () => {
         expect(provider.mode).toBe('byok');
     });
 
+    it('should ignore leftover encryptedApiKey when explicit cloud (Qozara Intelligence) is selected', async () => {
+        const provider = await AiProviderFactory.createProvider({
+            providerPreference: 'cloud',
+            encryptedApiKey: 'leftover-ciphertext-from-previous-byok',
+            proxyUrl: 'https://ai.qozara.org',
+        });
+
+        expect(provider.id).toBe('cloud-proxy');
+        expect(provider.mode).toBe('cloud');
+    });
+
     it('should disable explicit local provider by default when enableLocalAi is omitted', async () => {
         const provider = await AiProviderFactory.createProvider({
             providerPreference: 'local',

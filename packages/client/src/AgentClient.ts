@@ -1,4 +1,9 @@
-import { AgentChatRequest, AgentChatResponse, AuthTokenGetter } from './providers/types.js';
+import {
+    AgentChatRequest,
+    AgentChatResponse,
+    AuthTokenGetter,
+    AuthTokenRefresher,
+} from './providers/types.js';
 
 export interface AgentClientChatOptions extends AgentChatRequest {
     ciphertext?: string;
@@ -10,7 +15,8 @@ export class AgentClient {
 
     constructor(
         baseUrl: string = '',
-        private getAuthToken?: AuthTokenGetter
+        private getAuthToken?: AuthTokenGetter,
+        private onAuthExpired?: AuthTokenRefresher
     ) {
         this.base = (baseUrl || '').replace(/\/$/, '');
     }
@@ -38,11 +44,14 @@ export class AgentClient {
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({})) as { message?: string; error?: string };
+            const error = (await response.json().catch(() => ({}))) as {
+                message?: string;
+                error?: string;
+            };
             throw new Error(error.message || error.error || `Encryption failed (${response.status})`);
         }
 
-        const result = await response.json() as { ciphertext: string };
+        const result = (await response.json()) as { ciphertext: string };
         return result.ciphertext;
     }
 
@@ -51,31 +60,57 @@ export class AgentClient {
      * Auth token is optional (unauthenticated clients can use BYOK or anonymous tier).
      */
     async chat(request: AgentClientChatOptions): Promise<AgentChatResponse> {
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-        };
+        const send = async (tokenOverride?: string | null): Promise<Response> => {
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
 
-        if (this.getAuthToken) {
-            const token = await this.getAuthToken();
+            const token =
+                tokenOverride !== undefined
+                    ? tokenOverride
+                    : this.getAuthToken
+                      ? await this.getAuthToken()
+                      : null;
+
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
+
+            return fetch(`${this.base}/api/v1/agent/chat`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(request),
+            });
+        };
+
+        let response = await send();
+
+        if (response.status === 401 && !request.ciphertext && this.onAuthExpired) {
+            const refreshedToken = await this.onAuthExpired();
+            if (refreshedToken && refreshedToken.trim()) {
+                response = await send(refreshedToken.trim());
+            }
         }
 
-        const response = await fetch(`${this.base}/api/v1/agent/chat`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(request),
-        });
-
         if (!response.ok) {
-            const error = await response.json().catch(() => ({})) as any;
+            const error = (await response.json().catch(() => ({}))) as {
+                code?: string;
+                message?: string;
+                error?: string;
+            };
             return {
                 type: 'text',
-                error: error.code || error.message || error.error || `AI proxy request failed (${response.status})`,
+                error:
+                    error.code ||
+                    error.message ||
+                    error.error ||
+                    `AI proxy request failed (${response.status})`,
+                errorCode: error.code,
+                errorMessage: error.message,
+                status: response.status,
             };
         }
 
-        return await response.json() as AgentChatResponse;
+        return (await response.json()) as AgentChatResponse;
     }
 }
