@@ -3,6 +3,7 @@ export type AiErrorCode =
     | 'AI_DISABLED'
     | 'NO_ITEMS_PARSED'
     | 'NETWORK_ERROR'
+    | 'FORBIDDEN_NOT_REGISTERED'
     | 'AUTHENTICATION_REQUIRED'
     | 'PARSE_FAILED';
 
@@ -27,7 +28,17 @@ export function classifyAiError(err: unknown): AiError {
 
     const msg = err instanceof Error ? err.message : String(err);
 
-    if (/RATE_LIMIT|quota|Too Many Requests|429/i.test(msg)) {
+    // 1. Explicit status / proxy error codes first so words like "free quota" in 401/403 messages never misfire
+    if (/FORBIDDEN_403|\b403\b|Forbidden|not registered for Qozara Intelligence/i.test(msg)) {
+        return new AiError('FORBIDDEN_NOT_REGISTERED', msg, err);
+    }
+    if (
+        /UNAUTHORIZED_401|\b401\b|Unauthorized|expired Google token/i.test(msg) ||
+        (/invalid/i.test(msg) && /token/i.test(msg))
+    ) {
+        return new AiError('AUTHENTICATION_REQUIRED', msg, err);
+    }
+    if (/RATE_LIMIT|\b429\b|Too Many Requests|quota exceeded|quota reached|exhausted/i.test(msg)) {
         return new AiError('RATE_LIMIT_EXCEEDED', msg, err);
     }
     if (/AI is disabled|GenAI is disabled/i.test(msg)) {
@@ -38,12 +49,6 @@ export function classifyAiError(err: unknown): AiError {
     }
     if (/Failed to fetch|Network error|ECONNREFUSED|ENOTFOUND|timeout|unreachable/i.test(msg)) {
         return new AiError('NETWORK_ERROR', msg, err);
-    }
-    if (
-        /Unauthorized|401|403|Forbidden|expired Google token/i.test(msg) ||
-        (/invalid/i.test(msg) && /token/i.test(msg))
-    ) {
-        return new AiError('AUTHENTICATION_REQUIRED', msg, err);
     }
 
     return new AiError('PARSE_FAILED', msg, err);

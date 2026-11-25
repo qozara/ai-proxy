@@ -148,6 +148,65 @@ describe('GenAiToolResolver', () => {
         }
         expect(cache.size).toBe(0);
     });
+
+    it('retries once via onAuthExpired when proxy returns 401 and distinguishes 403 FORBIDDEN_NOT_REGISTERED', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 401,
+                json: async () => ({
+                    code: 'UNAUTHORIZED_401',
+                    message: 'Invalid or expired Google token',
+                }),
+            } as any)
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    type: 'tool_call',
+                    tool: 'decompose_dish',
+                    arguments: { dish_name: 'Humita' },
+                }),
+            } as any);
+        globalThis.fetch = fetchMock;
+
+        const onAuthExpired = vi.fn().mockResolvedValue('fresh-token-after-401');
+
+        const resolver = createGenAiToolResolver<{ query: string }, { dish: string }>({
+            factoryConfig: {
+                providerPreference: 'cloud',
+                proxyUrl: 'https://ai.qozara.org',
+            },
+            getAuthToken: () => 'expired-initial-token',
+            onAuthExpired,
+            buildRequest: (input) => ({ messages: [{ role: 'user', content: input.query }] }),
+            parseResponse: (extracted) => (extracted ? { dish: extracted.args.dish_name } : null),
+        });
+
+        const resolved = await resolver.resolve({ query: 'Humita' });
+        expect(resolved).toEqual({ dish: 'Humita' });
+        expect(onAuthExpired).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer fresh-token-after-401');
+
+        // 403 FORBIDDEN_403 must NOT trigger onAuthExpired and must surface FORBIDDEN_NOT_REGISTERED
+        globalThis.fetch = vi.fn().mockResolvedValueOnce({
+            ok: false,
+            status: 403,
+            json: async () => ({
+                code: 'FORBIDDEN_403',
+                message: 'Your Google account is not registered for Qozara Intelligence free quota.',
+            }),
+        } as any);
+        onAuthExpired.mockClear();
+
+        await expect(resolver.resolve({ query: 'Empanada' })).rejects.toMatchObject({
+            name: 'AiError',
+            code: 'FORBIDDEN_NOT_REGISTERED',
+        });
+        expect(onAuthExpired).not.toHaveBeenCalled();
+    });
 });
 
 describe('CompositeAiResolver', () => {

@@ -59,7 +59,12 @@ describe('AiError & classifyAiError', () => {
         expect(classifyAiError(new Error('Failed to fetch')).code).toBe('NETWORK_ERROR');
         expect(classifyAiError(new Error('ECONNREFUSED 127.0.0.1:11434')).code).toBe('NETWORK_ERROR');
         expect(classifyAiError(new Error('HTTP 401 Unauthorized')).code).toBe('AUTHENTICATION_REQUIRED');
+        expect(classifyAiError(new Error('UNAUTHORIZED_401')).code).toBe('AUTHENTICATION_REQUIRED');
         expect(classifyAiError(new Error('Invalid access token provided')).code).toBe('AUTHENTICATION_REQUIRED');
+        expect(classifyAiError(new Error('FORBIDDEN_403')).code).toBe('FORBIDDEN_NOT_REGISTERED');
+        expect(classifyAiError(new Error('HTTP 403 Forbidden: account not registered')).code).toBe(
+            'FORBIDDEN_NOT_REGISTERED'
+        );
         expect(classifyAiError(new Error('Malformed output')).code).toBe('PARSE_FAILED');
     });
 

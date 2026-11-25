@@ -1,4 +1,4 @@
-import { AiFactoryConfig, AiProvider, AuthTokenGetter } from './types.js';
+import { AiFactoryConfig, AiProvider, AuthTokenGetter, AuthTokenRefresher } from './types.js';
 import { ProxyAiProvider } from './ProxyAiProvider.js';
 import { WindowAiProvider } from './WindowAiProvider.js';
 import { LocalOllamaProvider } from './LocalOllamaProvider.js';
@@ -19,8 +19,19 @@ export class DisabledAiProvider implements AiProvider {
 }
 
 export class AiProviderFactory {
-    static async createProvider(config: AiFactoryConfig, getAuthToken?: AuthTokenGetter): Promise<AiProvider> {
-        const { providerPreference, encryptedApiKey, baseUrl, proxyUrl, byokProvider, enableLocalAi } = config;
+    static async createProvider(
+        config: AiFactoryConfig,
+        getAuthToken?: AuthTokenGetter,
+        onAuthExpired?: AuthTokenRefresher
+    ): Promise<AiProvider> {
+        const {
+            providerPreference,
+            encryptedApiKey,
+            baseUrl,
+            proxyUrl,
+            byokProvider,
+            enableLocalAi,
+        } = config;
         const normalizedPreference = normalizeProviderPreference(providerPreference);
         const isLocalAiOptedIn = Boolean(enableLocalAi);
 
@@ -31,7 +42,13 @@ export class AiProviderFactory {
 
         // 1. Explicit Selection: BYOK Cloud
         if (normalizedPreference === 'byok' && encryptedApiKey && proxyUrl) {
-            return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
+            return new ProxyAiProvider(
+                proxyUrl,
+                getAuthToken,
+                encryptedApiKey,
+                byokProvider,
+                onAuthExpired
+            );
         }
 
         // 2. Explicit Selection: Local Ollama (strictly opt-in via enableLocalAi)
@@ -47,9 +64,15 @@ export class AiProviderFactory {
             return new WindowAiProvider();
         }
 
-        // 4. Explicit Selection: Cloud (Qozara Intelligence / BYOK based on config)
+        // 4. Explicit Selection: Cloud (Qozara Intelligence — ignore any leftover BYOK ciphertext)
         if (normalizedPreference === 'cloud' && proxyUrl) {
-            return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
+            return new ProxyAiProvider(
+                proxyUrl,
+                getAuthToken,
+                undefined,
+                byokProvider,
+                onAuthExpired
+            );
         }
 
         // 5. "Auto" Mode Polymorphic Fallback Waterfall:
@@ -57,7 +80,13 @@ export class AiProviderFactory {
         if (normalizedPreference === 'auto') {
             // a) If BYOK ciphertext exists and proxy is set, prioritize user's own key
             if (encryptedApiKey && proxyUrl) {
-                return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
+                return new ProxyAiProvider(
+                    proxyUrl,
+                    getAuthToken,
+                    encryptedApiKey,
+                    byokProvider,
+                    onAuthExpired
+                );
             }
 
             // b) If Window AI (Gemini Nano on-device) is available
@@ -76,7 +105,13 @@ export class AiProviderFactory {
 
             // d) Last resort: Qozara Intelligence edge proxy
             if (proxyUrl) {
-                return new ProxyAiProvider(proxyUrl, getAuthToken, undefined, byokProvider);
+                return new ProxyAiProvider(
+                    proxyUrl,
+                    getAuthToken,
+                    undefined,
+                    byokProvider,
+                    onAuthExpired
+                );
             }
         }
 

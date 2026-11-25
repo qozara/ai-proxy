@@ -34,6 +34,9 @@ export interface AgentChatResponse {
     tool?: string;
     arguments?: any;
     error?: string;
+    errorCode?: string;
+    errorMessage?: string;
+    status?: number;
 }
 
 export interface AiProvider {
@@ -55,3 +58,4 @@ export interface AiFactoryConfig {
 }
 
 export type AuthTokenGetter = () => string | null | undefined | Promise<string | null | undefined>;
+export type AuthTokenRefresher = () => string | null | undefined | Promise<string | null | undefined>;
