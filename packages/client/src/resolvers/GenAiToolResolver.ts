@@ -61,11 +61,16 @@ export class GenAiToolResolver<TInput, TOutput, TArgs = Record<string, any>> {
                     ? await this.config.factoryConfig(input)
                     : this.config.factoryConfig;
 
-            const provider = await AiProviderFactory.createProvider(
-                resolvedFactoryConfig,
-                this.config.getAuthToken,
-                this.config.onAuthExpired
-            );
+            const provider = this.config.onAuthExpired
+                ? await AiProviderFactory.createProvider(
+                      resolvedFactoryConfig,
+                      this.config.getAuthToken,
+                      this.config.onAuthExpired
+                  )
+                : await AiProviderFactory.createProvider(
+                      resolvedFactoryConfig,
+                      this.config.getAuthToken
+                  );
 
             const request = await this.config.buildRequest(input);
             const response = await provider.chat(request);
